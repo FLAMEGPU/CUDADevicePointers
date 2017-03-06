@@ -27,6 +27,14 @@ inline func_ptr get_function(func_ptr d_symbol){
 	return h_ptr;
 }
 
+func_ptr get_function2(func_ptr *d_symbol){
+	func_ptr h_ptr;
+
+	cudaMemcpyFromSymbol(&h_ptr, *d_symbol, sizeof(func_ptr));
+
+	return h_ptr;
+}
+
 
 
 
@@ -49,7 +57,7 @@ __global__ void kernel(func_ptr f)
 void test1()
 {
 	
-	printf("Test1\n");
+	printf("Test1 - works correctly\n");
 	//host pointer
 	func_ptr h_f1_ptr;
 
@@ -74,7 +82,7 @@ void test1()
 
 void test2()
 {
-	printf("Test2\n");
+	printf("Test2 - No host copied of device symbol pointers (fails)\n");
 
 	//host pointer
 	func_ptr h_f1_ptr;
@@ -103,7 +111,7 @@ void test2()
 
 void test3()
 {
-	printf("Test3\n");
+	printf("Test3 - Function to get device symbol on host (must be declared inline)\n");
 
 	//host pointer
 	func_ptr h_f1_ptr;
@@ -125,6 +133,53 @@ void test3()
 
 }
 
+void test4()
+{
+	printf("Test4 - String query of device symbol (not supported since CUDA 5)\n");
+
+	//host pointer
+	func_ptr h_f1_ptr;
+
+	cudaMemcpyFromSymbol(&h_f1_ptr, "ds_f1_ptr", sizeof(func_ptr));
+
+	//print the host copy of the address copied form symbol
+	printf("Host address of h_f1_ptr is 0x%08X\n", h_f1_ptr);
+
+
+	//call kernel
+	kernel << <1, 1 >> >(h_f1_ptr);
+
+	//sync to ensure printf outputs
+	cudaDeviceSynchronize();
+
+}
+
+void test5()
+{
+	printf("Test5 - Pointer to device symbol\n");
+
+	//host pointer
+	func_ptr h_f1_ptr;
+
+	//pass device symbol as pointer
+	h_f1_ptr = get_function2(&ds_f1_ptr);
+
+	//print symbol address on host (not accessible from host)
+	printf("Host address of ds_f1_ptr (symbol) is 0x%08X\n", ds_f1_ptr);
+
+	//print the host copy of the address copied form symbol
+	printf("Host address of h_f1_ptr is 0x%08X\n", h_f1_ptr);
+
+
+	//call kernel
+	kernel << <1, 1 >> >(h_f1_ptr);
+
+	//sync to ensure printf outputs
+	cudaDeviceSynchronize();
+
+}
+
+
 int main()
 {
 
@@ -134,8 +189,14 @@ int main()
 	//fails
 	//test2();
 
+	//passes in release fails in debug (due to lack on inlining)
+	//test3();
 
-	test3();
+	//no longer supported in CUDA
+	//test4();
+
+	//
+	test5();
 
 	return 0;
 }
